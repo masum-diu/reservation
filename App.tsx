@@ -19,6 +19,7 @@ import RoomCard from './src/components/RoomCard';
 import BookingModal from './src/components/BookingModal';
 import BookingList from './src/components/BookingList';
 import AddRoomModal from './src/components/AddRoomModal';
+import OnboardingScreen from './src/components/OnboardingScreen';
 
 type Tab = 'rooms' | 'bookings';
 
@@ -32,6 +33,7 @@ export default function App() {
   const [showAdminLogin, setShowAdminLogin] = useState(false);
   const [adminPass, setAdminPass] = useState('');
   const [showPass, setShowPass] = useState(false);
+  const [onboarded, setOnboarded] = useState(false);
 
   const handleAdminToggle = () => {
     if (isAdmin) { setIsAdmin(false); return; }
@@ -53,6 +55,8 @@ export default function App() {
     setBookings(getBookings());
     setRooms([...ROOMS]);
   }, []);
+
+  if (!onboarded) return <OnboardingScreen onDone={() => setOnboarded(true)} />;
 
   return (
     <SafeAreaProvider>
