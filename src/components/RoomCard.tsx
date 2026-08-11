@@ -13,8 +13,18 @@ type Props = {
 };
 
 export default function RoomCard({ room, bookings, onBook, isAdmin, onDelete }: Props) {
-  const todayBookings = bookings.filter(b => b.roomId === room.id);
+  const today = new Date().toISOString().split('T')[0];
+  const todayBookings = bookings.filter(b => b.roomId === room.id && b.date === today);
+  const upcomingBookings = bookings
+    .filter(b => b.roomId === room.id && b.date > today)
+    .sort((a, b) => (a.date + a.startTime).localeCompare(b.date + b.startTime))
+    .slice(0, 2);
   const isAvailable = todayBookings.length === 0;
+
+  const formatDate = (d: string) => {
+    const date = new Date(d);
+    return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+  };
 
   return (
     <View style={styles.card}>
@@ -92,6 +102,27 @@ export default function RoomCard({ room, bookings, onBook, isAdmin, onDelete }: 
           <Icon name="calendar-plus" size={15} color="#fff" />
           <Text style={styles.bookBtnText}>Schedule Room</Text>
         </TouchableOpacity>
+
+        {/* Upcoming Bookings */}
+        {upcomingBookings.length > 0 && (
+          <View style={styles.upcoming}>
+            <View style={styles.scheduleHeader}>
+              <Icon name="calendar-clock" size={12} color={Colors.warning} />
+              <Text style={[styles.scheduleTitle, { color: Colors.warning }]}>UPCOMING</Text>
+            </View>
+            {upcomingBookings.map(b => (
+              <View key={b.id} style={styles.upcomingItem}>
+                <View style={[styles.upcomingDateBadge, { backgroundColor: Colors.warning + '18', borderColor: Colors.warning + '44' }]}>
+                  <Text style={[styles.upcomingDate, { color: Colors.warning }]}>{formatDate(b.date)}</Text>
+                </View>
+                <View style={[styles.timeBadge, { backgroundColor: room.color + '18' }]}>
+                  <Text style={[styles.timeText, { color: room.color }]}>{b.startTime}–{b.endTime}</Text>
+                </View>
+                <Text style={styles.meetingTitle} numberOfLines={1}>{b.title}</Text>
+              </View>
+            ))}
+          </View>
+        )}
       </View>
     </View>
   );
@@ -155,5 +186,15 @@ const styles = StyleSheet.create({
     flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
     gap: 8, borderRadius: 14, paddingVertical: 12,
   },
-  bookBtnText: { color: '#fff', fontWeight: '800', fontSize: 14 },
+  upcoming: {
+    borderTopWidth: 1, borderTopColor: Colors.border,
+    paddingTop: 12, marginTop: 10,
+  },
+  upcomingItem: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 8 },
+  upcomingDateBadge: {
+    borderWidth: 1, borderRadius: 8,
+    paddingHorizontal: 8, paddingVertical: 3,
+  },
+  upcomingDate: { fontSize: 11, fontWeight: '700' },
+  bookBtnText: { color: '#fff', fontSize: 14, fontWeight: '800' },
 });

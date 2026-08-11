@@ -19,28 +19,7 @@ export let ROOMS: Room[] = [
   },
 ];
 
-let bookings: Booking[] = [
-  {
-    id: 'b1',
-    roomId: 'r1',
-    title: 'Product Sync',
-    organizer: 'Rahim',
-    date: '2025-07-15',
-    startTime: '10:00',
-    endTime: '11:00',
-    attendees: 5,
-  },
-  {
-    id: 'b2',
-    roomId: 'r2',
-    title: 'Design Review',
-    organizer: 'Karim',
-    date: '2025-07-15',
-    startTime: '14:00',
-    endTime: '15:30',
-    attendees: 4,
-  },
-];
+let bookings: Booking[] = [];
 
 export const getBookings = () => [...bookings];
 

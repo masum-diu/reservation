@@ -66,7 +66,7 @@ export default function App() {
         <View style={styles.header}>
           <View style={styles.headerLeft}>
             {/* <Icon name="office-building" size={28} color={Colors.accent} /> */}
-            <View style={{ marginLeft: 10 }}>
+            <View >
               <Text style={styles.headerTitle}>MeetSpace</Text>
               <Text style={styles.headerSub}>Office Meeting Rooms</Text>
             </View>
