@@ -1,7 +1,7 @@
 import React, { useState, useMemo } from 'react';
 import {
   Modal, View, Text, TextInput, TouchableOpacity,
-  StyleSheet, Alert, ScrollView, Platform,
+  StyleSheet, Alert, ScrollView, Platform, useWindowDimensions,
 } from 'react-native';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
@@ -27,6 +27,11 @@ for (let h = 8; h <= 18; h++) {
 const fmt = (d: Date) => d.toISOString().split('T')[0];
 
 export default function BookingModal({ room, visible, onClose, onBooked, bookings }: Props) {
+  const { width } = useWindowDimensions();
+  const COLS = 4;
+  const GRID_PADDING = 24 * 2; // sheet padding
+  const SLOT_GAP = 6;
+  const slotWidth = (width - GRID_PADDING - SLOT_GAP * (COLS - 1)) / COLS;
   const [title, setTitle] = useState('');
   const [organizer, setOrganizer] = useState('');
   const [date, setDate] = useState(new Date());
@@ -177,7 +182,7 @@ export default function BookingModal({ room, visible, onClose, onBooked, booking
                 return (
                   <TouchableOpacity
                     key={slot}
-                    style={[styles.slot, getSlotStyle(state, room.color)]}
+                    style={[styles.slot, getSlotStyle(state, room.color), { width: slotWidth }]}
                     onPress={() => handleSlotPress(slot)}
                     disabled={state === 'booked'}
                     activeOpacity={0.8}>
@@ -277,8 +282,8 @@ const styles = StyleSheet.create({
   legendText: { color: Colors.textMuted, fontSize: 10 },
   slotsGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginBottom: 12 },
   slot: {
-    flexDirection: 'row', alignItems: 'center', gap: 4,
-    paddingHorizontal: 10, paddingVertical: 7,
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 4,
+    paddingVertical: 10,
     borderRadius: 10, borderWidth: 1,
   },
   slotText: { fontSize: 12, fontWeight: '600' },
