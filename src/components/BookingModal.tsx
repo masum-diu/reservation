@@ -30,7 +30,7 @@ const fmt = (d: Date) => d.toISOString().split('T')[0];
 
 export default function BookingModal({ room, visible, onClose, onBooked, bookings }: Props) {
   const { width } = useWindowDimensions();
-  const COLS = 4;
+  const COLS = 3;
   const GRID_PADDING = 24 * 2; // sheet padding
   const SLOT_GAP = 6;
   const slotWidth = (width - GRID_PADDING - SLOT_GAP * (COLS - 1)) / COLS;
@@ -315,7 +315,7 @@ const styles = StyleSheet.create({
     paddingVertical: 10,
     borderRadius: 10, borderWidth: 1,
   },
-  slotText: { fontSize: 12, fontWeight: '600' },
+  slotText: { fontSize: 11, fontWeight: '600' },
   rangeBox: {
     flexDirection: 'row', alignItems: 'center', gap: 8,
     borderWidth: 1.5, borderRadius: 12, padding: 12, marginBottom: 14,

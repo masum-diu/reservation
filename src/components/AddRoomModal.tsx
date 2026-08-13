@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   Modal, View, Text, TextInput, TouchableOpacity,
   StyleSheet, Alert, ScrollView, ActivityIndicator, Platform,
@@ -6,10 +6,12 @@ import {
 } from 'react-native';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import { Colors } from '../theme/colors';
-import { addRoom } from '../data/rooms';
+import { addRoom, updateRoom } from '../data/rooms';
+import { Room } from '../types';
 
 type Props = {
   visible: boolean;
+  room?: Room | null;
   onClose: () => void;
   onAdded: () => void;
   onError: (error: unknown) => void;
@@ -17,7 +19,8 @@ type Props = {
 
 const COLORS = ['#6C63FF', '#FF6584', '#FFB800', '#43D9AD', '#FF8C42', '#4ECDC4'];
 
-export default function AddRoomModal({ visible, onClose, onAdded, onError }: Props) {
+export default function AddRoomModal({ visible, room, onClose, onAdded, onError }: Props) {
+  const isEditing = !!room;
   const [name, setName] = useState('');
   const [capacity, setCapacity] = useState('');
   const [floor, setFloor] = useState('');
@@ -29,7 +32,20 @@ export default function AddRoomModal({ visible, onClose, onAdded, onError }: Pro
     setName(''); setCapacity(''); setFloor(''); setAmenities(''); setColor(COLORS[0]);
   };
 
-  const handleAdd = async () => {
+  useEffect(() => {
+    if (!visible) return;
+    if (room) {
+      setName(room.name);
+      setCapacity(String(room.capacity));
+      setFloor(String(room.floor));
+      setAmenities(room.amenities.join(', '));
+      setColor(room.color);
+    } else {
+      reset();
+    }
+  }, [visible, room]);
+
+  const handleSubmit = async () => {
     if (!name || !capacity || !floor) {
       Alert.alert('Missing Info', 'Please fill name, capacity and floor.');
       return;
@@ -37,13 +53,18 @@ export default function AddRoomModal({ visible, onClose, onAdded, onError }: Pro
     if (submitting) return;
     setSubmitting(true);
     try {
-      await addRoom({
+      const payload = {
         name,
         capacity: parseInt(capacity, 10) || 1,
         floor: parseInt(floor, 10) || 1,
         amenities: amenities.split(',').map(a => a.trim()).filter(Boolean),
         color,
-      });
+      };
+      if (room) {
+        await updateRoom(room.id, payload);
+      } else {
+        await addRoom(payload);
+      }
       reset();
       onAdded();
     } catch (error) {
@@ -61,7 +82,7 @@ export default function AddRoomModal({ visible, onClose, onAdded, onError }: Pro
         keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 20}>
         <View style={styles.sheet}>
           <View style={[styles.handle, { backgroundColor: Colors.accent }]} />
-          <Text style={styles.heading}>Add New Room</Text>
+          <Text style={styles.heading}>{isEditing ? 'Edit Room' : 'Add New Room'}</Text>
 
           <ScrollView showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
             <Field label="Room Name" value={name} onChange={setName} placeholder="e.g. Board Room" />
@@ -84,12 +105,14 @@ export default function AddRoomModal({ visible, onClose, onAdded, onError }: Pro
 
             <TouchableOpacity
               style={[styles.confirmBtn, { backgroundColor: Colors.accent }, submitting && styles.confirmBtnDisabled]}
-              onPress={handleAdd}
+              onPress={handleSubmit}
               disabled={submitting}>
               {submitting
                 ? <ActivityIndicator color="#fff" style={{ marginRight: 8 }} />
-                : <Icon name="plus-circle" size={18} color="#fff" style={{ marginRight: 8 }} />}
-              <Text style={styles.confirmText}>{submitting ? 'Adding…' : 'Add Room'}</Text>
+                : <Icon name={isEditing ? 'content-save' : 'plus-circle'} size={18} color="#fff" style={{ marginRight: 8 }} />}
+              <Text style={styles.confirmText}>
+                {submitting ? (isEditing ? 'Saving…' : 'Adding…') : (isEditing ? 'Save Changes' : 'Add Room')}
+              </Text>
             </TouchableOpacity>
 
             <TouchableOpacity style={styles.cancelBtn} onPress={() => { reset(); onClose(); }}>

@@ -72,5 +72,8 @@ export const hasConflict = (
 export const addRoom = (room: Omit<Room, 'id'>): Promise<Room> =>
   apiRequest<Room>('/rooms', { method: 'POST', body: room, admin: true });
 
+export const updateRoom = (id: string, room: Omit<Room, 'id'>): Promise<Room> =>
+  apiRequest<Room>(`/rooms/${id}`, { method: 'PUT', body: room, admin: true });
+
 export const deleteRoom = (id: string): Promise<void> =>
   apiRequest<void>(`/rooms/${id}`, { method: 'DELETE', admin: true });

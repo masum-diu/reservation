@@ -1,7 +1,8 @@
-// display a 24h "HH:MM" slot value as a 12h label (e.g. 13:00 -> 1:00, 08:00 -> 8:00)
+// display a 24h "HH:MM" slot value as a 12h label with AM/PM (e.g. 13:00 -> 1:00 PM, 08:00 -> 8:00 AM)
 export const fmt12 = (slot: string) => {
   const [h, m] = slot.split(':');
   const hour = parseInt(h, 10);
-  const displayHour = hour > 12 ? hour - 12 : hour;
-  return `${displayHour}:${m}`;
+  const period = hour >= 12 ? 'PM' : 'AM';
+  const displayHour = hour > 12 ? hour - 12 : hour === 0 ? 12 : hour;
+  return `${displayHour}:${m} ${period}`;
 };

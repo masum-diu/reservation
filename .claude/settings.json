@@ -1,0 +1,11 @@
+{
+  "permissions": {
+    "additionalDirectories": [
+      "G:\\meetspace\\routes"
+    ],
+    "allow": [
+      "Read(//g/meetspace/**)",
+      "Bash(php artisan *)"
+    ]
+  }
+}

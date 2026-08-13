@@ -10,10 +10,11 @@ type Props = {
   bookings: Booking[];
   onBook: (room: Room) => void;
   isAdmin?: boolean;
+  onEdit?: (room: Room) => void;
   onDelete?: (id: string) => void;
 };
 
-export default function RoomCard({ room, bookings, onBook, isAdmin, onDelete }: Props) {
+export default function RoomCard({ room, bookings, onBook, isAdmin, onEdit, onDelete }: Props) {
   const today = new Date().toISOString().split('T')[0];
   const todayBookings = bookings.filter(b => b.roomId === room.id && b.date === today);
   const upcomingBookings = bookings
@@ -36,6 +37,11 @@ export default function RoomCard({ room, bookings, onBook, isAdmin, onDelete }: 
           <Text style={styles.bannerName}>{room.name}</Text>
         </View>
         <View style={styles.bannerRight}>
+          {isAdmin && (
+            <TouchableOpacity style={styles.deleteBtn} onPress={() => onEdit?.(room)}>
+              <Icon name="pencil-outline" size={18} color="#fff" />
+            </TouchableOpacity>
+          )}
           {isAdmin && (
             <TouchableOpacity style={styles.deleteBtn} onPress={() => onDelete?.(room.id)}>
               <Icon name="trash-can-outline" size={18} color="#fff" />

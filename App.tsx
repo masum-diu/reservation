@@ -32,6 +32,7 @@ export default function App() {
   const [bookings, setBookings] = useState<Booking[]>([]);
   const [isAdmin, setIsAdmin] = useState(false);
   const [showAddRoom, setShowAddRoom] = useState(false);
+  const [editingRoom, setEditingRoom] = useState<Room | null>(null);
   const [rooms, setRooms] = useState<Room[]>([]);
   const [loading, setLoading] = useState(true);
   const [showAdminLogin, setShowAdminLogin] = useState(false);
@@ -174,7 +175,7 @@ export default function App() {
             <View style={styles.sectionRow}>
               <Text style={styles.sectionLabel}>SELECT A ROOM TO BOOK</Text>
               {isAdmin && (
-                <TouchableOpacity style={styles.addRoomBtn} onPress={() => setShowAddRoom(true)}>
+                <TouchableOpacity style={styles.addRoomBtn} onPress={() => { setEditingRoom(null); setShowAddRoom(true); }}>
                   <Icon name="plus" size={14} color="#fff" />
                   <Text style={styles.addRoomText}>Add Room</Text>
                 </TouchableOpacity>
@@ -187,6 +188,7 @@ export default function App() {
                 bookings={bookings}
                 onBook={r => setSelectedRoom(r)}
                 isAdmin={isAdmin}
+                onEdit={r => { setEditingRoom(r); setShowAddRoom(true); }}
                 onDelete={id => { handleDeleteRoom(id); }}
               />
             ))}
@@ -243,8 +245,9 @@ export default function App() {
         {/* Add Room Modal */}
         <AddRoomModal
           visible={showAddRoom}
-          onClose={() => setShowAddRoom(false)}
-          onAdded={() => { setShowAddRoom(false); refresh(); }}
+          room={editingRoom}
+          onClose={() => { setShowAddRoom(false); setEditingRoom(null); }}
+          onAdded={() => { setShowAddRoom(false); setEditingRoom(null); refresh(); }}
           onError={handleApiError}
         />
       </SafeAreaView>
