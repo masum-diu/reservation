@@ -1,7 +1,8 @@
 import React, { useState } from 'react';
 import {
   Modal, View, Text, TextInput, TouchableOpacity,
-  StyleSheet, Alert, ScrollView, ActivityIndicator,
+  StyleSheet, Alert, ScrollView, ActivityIndicator, Platform,
+  KeyboardAvoidingView,
 } from 'react-native';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import { Colors } from '../theme/colors';
@@ -54,12 +55,15 @@ export default function AddRoomModal({ visible, onClose, onAdded, onError }: Pro
 
   return (
     <Modal visible={visible} animationType="slide" transparent>
-      <View style={styles.overlay}>
+      <KeyboardAvoidingView
+        style={styles.overlay}
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 20}>
         <View style={styles.sheet}>
           <View style={[styles.handle, { backgroundColor: Colors.accent }]} />
           <Text style={styles.heading}>Add New Room</Text>
 
-          <ScrollView showsVerticalScrollIndicator={false}>
+          <ScrollView showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
             <Field label="Room Name" value={name} onChange={setName} placeholder="e.g. Board Room" />
             <Field label="Capacity" value={capacity} onChange={setCapacity} placeholder="10" keyboardType="numeric" />
             <Field label="Floor" value={floor} onChange={setFloor} placeholder="3" keyboardType="numeric" />
@@ -94,7 +98,7 @@ export default function AddRoomModal({ visible, onClose, onAdded, onError }: Pro
             </TouchableOpacity>
           </ScrollView>
         </View>
-      </View>
+      </KeyboardAvoidingView>
     </Modal>
   );
 }

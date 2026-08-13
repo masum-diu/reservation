@@ -2,12 +2,14 @@ import React, { useState, useMemo } from 'react';
 import {
   Modal, View, Text, TextInput, TouchableOpacity,
   StyleSheet, Alert, ScrollView, Platform, useWindowDimensions, ActivityIndicator,
+  KeyboardAvoidingView,
 } from 'react-native';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import { Room } from '../types';
 import { Colors } from '../theme/colors';
 import { hasConflict, addBooking } from '../data/rooms';
+import { fmt12 } from '../utils/time';
 
 type Props = {
   room: Room | null;
@@ -17,11 +19,11 @@ type Props = {
   bookings: import('../types').Booking[];
 };
 
-// generate 30-min slots from 08:00 to 18:00
+// generate 30-min slots from 08:00 to 20:00
 const TIME_SLOTS: string[] = [];
-for (let h = 8; h <= 18; h++) {
+for (let h = 8; h <= 20; h++) {
   TIME_SLOTS.push(`${String(h).padStart(2, '0')}:00`);
-  if (h < 18) TIME_SLOTS.push(`${String(h).padStart(2, '0')}:30`);
+  if (h < 20) TIME_SLOTS.push(`${String(h).padStart(2, '0')}:30`);
 }
 
 const fmt = (d: Date) => d.toISOString().split('T')[0];
@@ -60,8 +62,16 @@ export default function BookingModal({ room, visible, onClose, onBooked, booking
     return map;
   }, [room, date, bookings]);
 
+  // slots before the current time are unavailable, but only for today
+  const isPastSlot = (slot: string): boolean => {
+    if (fmt(date) !== fmt(new Date())) return false;
+    const now = new Date();
+    const nowStr = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
+    return slot < nowStr;
+  };
+
   const handleSlotPress = (slot: string) => {
-    if (bookedMap.has(slot)) return;
+    if (bookedMap.has(slot) || isPastSlot(slot)) return;
     if (!startTime || endTime) {
       setStartTime(slot);
       setEndTime('');
@@ -74,16 +84,18 @@ export default function BookingModal({ room, visible, onClose, onBooked, booking
     }
     // block if any booked slot is in range
     const between = TIME_SLOTS.slice(TIME_SLOTS.indexOf(startTime) + 1, TIME_SLOTS.indexOf(slot) + 1);
-    const conflict = between.find(s => bookedMap.has(s));
+    const conflict = between.find(s => bookedMap.has(s) || isPastSlot(s));
     if (conflict) {
-      Alert.alert('Conflict', `"${bookedMap.get(conflict)}" is booked within your selected range.`);
+      Alert.alert('Conflict', bookedMap.has(conflict)
+        ? `"${bookedMap.get(conflict)}" is booked within your selected range.`
+        : 'Selected range includes a past time slot.');
       return;
     }
     setEndTime(slot);
   };
 
   const slotState = (slot: string): 'booked' | 'start' | 'end' | 'range' | 'free' => {
-    if (bookedMap.has(slot)) return 'booked';
+    if (bookedMap.has(slot) || isPastSlot(slot)) return 'booked';
     if (slot === startTime) return 'start';
     if (slot === endTime) return 'end';
     if (startTime && endTime && slot > startTime && slot < endTime) return 'range';
@@ -123,7 +135,10 @@ export default function BookingModal({ room, visible, onClose, onBooked, booking
 
   return (
     <Modal visible={visible} animationType="slide" transparent>
-      <View style={styles.overlay}>
+      <KeyboardAvoidingView
+        style={styles.overlay}
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 20}>
         <View style={styles.sheet}>
           <TouchableOpacity onPress={() => { reset(); onClose(); }} style={styles.closeBtn}>
             <Icon name="close" size={20} color={Colors.textMuted} />
@@ -138,7 +153,7 @@ export default function BookingModal({ room, visible, onClose, onBooked, booking
             <Text style={styles.sub}>Max {room.capacity}</Text>
           </View>
 
-          <ScrollView showsVerticalScrollIndicator={false}>
+          <ScrollView showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
             <View style={styles.field}>
               <Text style={styles.label}>Meeting Title</Text>
               <TextInput style={styles.input} value={title} onChangeText={setTitle}
@@ -179,7 +194,7 @@ export default function BookingModal({ room, visible, onClose, onBooked, booking
               <View style={styles.legend}>
                 <LegendDot color={Colors.success} label="Free" />
                 <LegendDot color={room.color} label="Selected" />
-                <LegendDot color="#9E9E9E" label="Booked" />
+                <LegendDot color="#E57373" label="Booked" />
               </View>
             </View>
 
@@ -196,10 +211,10 @@ export default function BookingModal({ room, visible, onClose, onBooked, booking
                     disabled={state === 'booked'}
                     activeOpacity={0.8}>
                     {isBooked
-                      ? <Icon name="lock-outline" size={12} color="#9E9E9E" />
+                      ? <Icon name="lock-outline" size={12} color="#E57373" />
                       : <Icon name="clock-outline" size={12} color={isSelected ? '#fff' : Colors.success} />}
-                    <Text style={[styles.slotText, { color: isBooked ? '#9E9E9E' : isSelected ? '#fff' : Colors.text }]}>
-                      {slot}
+                    <Text style={[styles.slotText, { color: isBooked ? '#E57373' : isSelected ? '#fff' : Colors.text }]}>
+                      {fmt12(slot)}
                     </Text>
                   </TouchableOpacity>
                 );
@@ -211,7 +226,7 @@ export default function BookingModal({ room, visible, onClose, onBooked, booking
               <View style={[styles.rangeBox, { borderColor: room.color }]}>
                 <Icon name="clock-outline" size={16} color={room.color} />
                 <Text style={[styles.rangeText, { color: room.color }]}>
-                  {startTime} {endTime ? `→  ${endTime}` : '→  tap end time'}
+                  {fmt12(startTime)} {endTime ? `→  ${fmt12(endTime)}` : '→  tap end time'}
                 </Text>
               </View>
             ) : null}
@@ -238,7 +253,7 @@ export default function BookingModal({ room, visible, onClose, onBooked, booking
             </TouchableOpacity>
           </ScrollView>
         </View>
-      </View>
+      </KeyboardAvoidingView>
     </Modal>
   );
 }
@@ -253,7 +268,7 @@ function LegendDot({ color, label }: { color: string; label: string }) {
 }
 
 function getSlotStyle(state: string, color: string) {
-  if (state === 'booked') return { backgroundColor: '#E0E0E0', borderColor: '#BDBDBD' };
+  if (state === 'booked') return { backgroundColor: '#FFEBEE', borderColor: '#EF9A9A' };
   if (state === 'start' || state === 'end') return { backgroundColor: color, borderColor: color };
   if (state === 'range') return { backgroundColor: color + '99', borderColor: color };
   return { backgroundColor: Colors.success + '15', borderColor: Colors.success + '55' };

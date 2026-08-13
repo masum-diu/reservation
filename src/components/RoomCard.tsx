@@ -3,6 +3,7 @@ import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import { Room, Booking } from '../types';
 import { Colors } from '../theme/colors';
+import { fmt12 } from '../utils/time';
 
 type Props = {
   room: Room;
@@ -86,7 +87,7 @@ export default function RoomCard({ room, bookings, onBook, isAdmin, onDelete }: 
               <View key={b.id} style={styles.scheduleItem}>
                 <View style={[styles.timeBar, { backgroundColor: room.color }]} />
                 <View style={[styles.timeBadge, { backgroundColor: room.color + '18' }]}>
-                  <Text style={[styles.timeText, { color: room.color }]}>{b.startTime}–{b.endTime}</Text>
+                  <Text style={[styles.timeText, { color: room.color }]}>{fmt12(b.startTime)}–{fmt12(b.endTime)}</Text>
                 </View>
                 <View style={{ flex: 1 }}>
                   <Text style={styles.meetingTitle}>{b.title}</Text>
@@ -116,7 +117,7 @@ export default function RoomCard({ room, bookings, onBook, isAdmin, onDelete }: 
                   <Text style={[styles.upcomingDate, { color: Colors.warning }]}>{formatDate(b.date)}</Text>
                 </View>
                 <View style={[styles.timeBadge, { backgroundColor: room.color + '18' }]}>
-                  <Text style={[styles.timeText, { color: room.color }]}>{b.startTime}–{b.endTime}</Text>
+                  <Text style={[styles.timeText, { color: room.color }]}>{fmt12(b.startTime)}–{fmt12(b.endTime)}</Text>
                 </View>
                 <Text style={styles.meetingTitle} numberOfLines={1}>{b.title}</Text>
               </View>

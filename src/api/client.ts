@@ -17,6 +17,21 @@ type RequestOptions = {
   admin?: boolean;
 };
 
+export async function verifyAdminPassword(password: string): Promise<boolean> {
+  let res: Response;
+  try {
+    res = await fetch(`${API_BASE_URL}/admin/verify`, {
+      method: 'GET',
+      headers: { 'X-Admin-Password': password, Accept: 'application/json' },
+    });
+  } catch {
+    throw new ApiError(0, 'Could not reach the server. Check your connection and try again.');
+  }
+  if (res.status === 403) return false;
+  if (!res.ok) throw new ApiError(res.status, `Request failed (${res.status})`);
+  return true;
+}
+
 export async function apiRequest<T>(path: string, options: RequestOptions = {}): Promise<T> {
   const headers: Record<string, string> = {
     'Content-Type': 'application/json',

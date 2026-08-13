@@ -1,15 +1,17 @@
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, SectionList, TouchableOpacity } from 'react-native';
+import { View, Text, StyleSheet, SectionList, TouchableOpacity, Alert, ActivityIndicator } from 'react-native';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import { Booking, Room } from '../types';
 import { Colors } from '../theme/colors';
+import { fmt12 } from '../utils/time';
 
-type Props = { bookings: Booking[]; rooms: Room[] };
+type Props = { bookings: Booking[]; rooms: Room[]; isAdmin?: boolean; onDelete?: (id: string) => Promise<void> | void };
 
 type Section = { title: string; icon: string; color: string; data: Booking[] };
 
-export default function BookingList({ bookings, rooms }: Props) {
+export default function BookingList({ bookings, rooms, isAdmin, onDelete }: Props) {
   const [collapsed, setCollapsed] = useState<Record<string, boolean>>({});
+  const [deletingIds, setDeletingIds] = useState<Set<string>>(new Set());
   const getRoom = (id: string) => rooms.find(r => r.id === id);
 
   const today = new Date().toISOString().split('T')[0];
@@ -96,10 +98,44 @@ export default function BookingList({ bookings, rooms }: Props) {
                     </Text>
                   </View>
                 )}
+                {isAdmin && (
+                  <TouchableOpacity
+                    style={styles.deleteBtn}
+                    disabled={deletingIds.has(item.id)}
+                    onPress={() => {
+                      Alert.alert(
+                        'Delete Booking',
+                        `Delete "${item.title}"?`,
+                        [
+                          { text: 'Cancel', style: 'cancel' },
+                          {
+                            text: 'Delete',
+                            style: 'destructive',
+                            onPress: async () => {
+                              setDeletingIds(prev => new Set(prev).add(item.id));
+                              try {
+                                await onDelete?.(item.id);
+                              } finally {
+                                setDeletingIds(prev => {
+                                  const next = new Set(prev);
+                                  next.delete(item.id);
+                                  return next;
+                                });
+                              }
+                            },
+                          },
+                        ],
+                      );
+                    }}>
+                    {deletingIds.has(item.id)
+                      ? <ActivityIndicator size="small" color={Colors.error} />
+                      : <Icon name="trash-can-outline" size={16} color={Colors.error} />}
+                  </TouchableOpacity>
+                )}
               </View>
               <View style={styles.divider} />
               <View style={styles.metaRow}>
-                <MetaItem icon="clock-outline" text={`${item.startTime} – ${item.endTime}`} color={color} />
+                <MetaItem icon="clock-outline" text={`${fmt12(item.startTime)} – ${fmt12(item.endTime)}`} color={color} />
                 <MetaItem icon="account" text={item.organizer} color={color} />
               </View>
               <View style={styles.metaRow}>
@@ -174,6 +210,11 @@ const styles = StyleSheet.create({
     borderRadius: 8, paddingHorizontal: 7, paddingVertical: 3,
   },
   advanceText: { color: Colors.success, fontSize: 11, fontWeight: '700' },
+  deleteBtn: {
+    padding: 6, borderRadius: 8,
+    backgroundColor: Colors.error + '18',
+    marginLeft: 6,
+  },
   divider: { height: 1, backgroundColor: Colors.border, marginBottom: 8 },
   metaRow: { flexDirection: 'row', gap: 12, marginBottom: 4 },
   metaItem: { flexDirection: 'row', alignItems: 'center', gap: 4, flex: 1 },

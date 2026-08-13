@@ -13,9 +13,9 @@ import {
 } from 'react-native';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
-import { fetchRooms, fetchBookings, deleteRoom } from './src/data/rooms';
+import { fetchRooms, fetchBookings, deleteRoom, deleteBooking } from './src/data/rooms';
 import { setAdminPassword, clearAdminPassword } from './src/api/adminAuth';
-import { ApiError } from './src/api/client';
+import { ApiError, verifyAdminPassword } from './src/api/client';
 import { Room, Booking } from './src/types';
 import { Colors } from './src/theme/colors';
 import RoomCard from './src/components/RoomCard';
@@ -37,6 +37,7 @@ export default function App() {
   const [showAdminLogin, setShowAdminLogin] = useState(false);
   const [adminPass, setAdminPass] = useState('');
   const [showPass, setShowPass] = useState(false);
+  const [verifyingAdmin, setVerifyingAdmin] = useState(false);
   const [onboarded, setOnboarded] = useState(false);
 
   const handleApiError = useCallback((error: unknown) => {
@@ -59,14 +60,24 @@ export default function App() {
     setShowAdminLogin(true);
   };
 
-  const handleAdminLogin = () => {
-    if (!adminPass) return;
-    // No dedicated login endpoint — the password is only verified against
-    // the server the first time an admin action (add/delete) is attempted.
-    setAdminPassword(adminPass);
-    setIsAdmin(true);
-    setShowAdminLogin(false);
-    setAdminPass('');
+  const handleAdminLogin = async () => {
+    if (!adminPass || verifyingAdmin) return;
+    setVerifyingAdmin(true);
+    try {
+      const ok = await verifyAdminPassword(adminPass);
+      if (!ok) {
+        Alert.alert('Access Denied', 'Incorrect admin password.');
+        return;
+      }
+      setAdminPassword(adminPass);
+      setIsAdmin(true);
+      setShowAdminLogin(false);
+      setAdminPass('');
+    } catch (error) {
+      handleApiError(error);
+    } finally {
+      setVerifyingAdmin(false);
+    }
   };
 
   const refresh = useCallback(async () => {
@@ -90,6 +101,20 @@ export default function App() {
       await deleteRoom(id);
       await refresh();
     } catch (error) {
+      handleApiError(error);
+    }
+  };
+
+  const handleDeleteBooking = async (id: string) => {
+    try {
+      await deleteBooking(id);
+      await refresh();
+    } catch (error) {
+      if (error instanceof ApiError && error.status === 404) {
+        Alert.alert('Already Deleted', 'This booking was already removed.');
+        await refresh();
+        return;
+      }
       handleApiError(error);
     }
   };
@@ -167,7 +192,7 @@ export default function App() {
             ))}
           </ScrollView>
         ) : (
-          <BookingList bookings={bookings} rooms={rooms} />
+          <BookingList bookings={bookings} rooms={rooms} isAdmin={isAdmin} onDelete={handleDeleteBooking} />
         )}
 
         {/* Booking Modal */}
@@ -194,15 +219,21 @@ export default function App() {
                   value={adminPass}
                   onChangeText={setAdminPass}
                   onSubmitEditing={handleAdminLogin}
+                  editable={!verifyingAdmin}
                 />
                 <TouchableOpacity style={styles.eyeBtn} onPress={() => setShowPass(p => !p)}>
                   <Icon name={showPass ? 'eye-off' : 'eye'} size={20} color={Colors.textMuted} />
                 </TouchableOpacity>
               </View>
-              <TouchableOpacity style={styles.loginBtn} onPress={handleAdminLogin}>
-                <Text style={styles.loginBtnText}>Login</Text>
+              <TouchableOpacity
+                style={[styles.loginBtn, verifyingAdmin && styles.confirmBtnDisabled]}
+                onPress={handleAdminLogin}
+                disabled={verifyingAdmin}>
+                {verifyingAdmin
+                  ? <ActivityIndicator color="#fff" />
+                  : <Text style={styles.loginBtnText}>Login</Text>}
               </TouchableOpacity>
-              <TouchableOpacity onPress={() => setShowAdminLogin(false)}>
+              <TouchableOpacity onPress={() => { if (!verifyingAdmin) setShowAdminLogin(false); }}>
                 <Text style={styles.loginCancel}>Cancel</Text>
               </TouchableOpacity>
             </View>
@@ -320,5 +351,6 @@ const styles = StyleSheet.create({
     borderRadius: 10, padding: 13, alignItems: 'center', marginBottom: 8,
   },
   loginBtnText: { color: '#fff', fontWeight: '800', fontSize: 15 },
+  confirmBtnDisabled: { opacity: 0.6 },
   loginCancel: { color: Colors.textMuted, fontSize: 13, marginTop: 4 },
 });
