@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useEffect } from 'react';
 import {
   View,
   Text,
@@ -9,11 +9,14 @@ import {
   Modal,
   TextInput,
   Alert,
+  ActivityIndicator,
 } from 'react-native';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
-import { ROOMS, getBookings, deleteRoom } from './src/data/rooms';
-import { Room } from './src/types';
+import { fetchRooms, fetchBookings, deleteRoom } from './src/data/rooms';
+import { setAdminPassword, clearAdminPassword } from './src/api/adminAuth';
+import { ApiError } from './src/api/client';
+import { Room, Booking } from './src/types';
 import { Colors } from './src/theme/colors';
 import RoomCard from './src/components/RoomCard';
 import BookingModal from './src/components/BookingModal';
@@ -26,37 +29,82 @@ type Tab = 'rooms' | 'bookings';
 export default function App() {
   const [tab, setTab] = useState<Tab>('rooms');
   const [selectedRoom, setSelectedRoom] = useState<Room | null>(null);
-  const [bookings, setBookings] = useState(getBookings());
+  const [bookings, setBookings] = useState<Booking[]>([]);
   const [isAdmin, setIsAdmin] = useState(false);
   const [showAddRoom, setShowAddRoom] = useState(false);
-  const [rooms, setRooms] = useState([...ROOMS]);
+  const [rooms, setRooms] = useState<Room[]>([]);
+  const [loading, setLoading] = useState(true);
   const [showAdminLogin, setShowAdminLogin] = useState(false);
   const [adminPass, setAdminPass] = useState('');
   const [showPass, setShowPass] = useState(false);
   const [onboarded, setOnboarded] = useState(false);
 
+  const handleApiError = useCallback((error: unknown) => {
+    if (error instanceof ApiError && error.status === 403) {
+      setIsAdmin(false);
+      clearAdminPassword();
+      Alert.alert('Access Denied', 'Incorrect admin password.');
+      return;
+    }
+    Alert.alert('Error', error instanceof Error ? error.message : 'Something went wrong.');
+  }, []);
+
   const handleAdminToggle = () => {
-    if (isAdmin) { setIsAdmin(false); return; }
+    if (isAdmin) {
+      setIsAdmin(false);
+      clearAdminPassword();
+      return;
+    }
     setAdminPass('');
     setShowAdminLogin(true);
   };
 
   const handleAdminLogin = () => {
-    if (adminPass === 'nothing1234') {
-      setIsAdmin(true);
-      setShowAdminLogin(false);
-    } else {
-      Alert.alert('Access Denied', 'Incorrect admin password.');
-    }
+    if (!adminPass) return;
+    // No dedicated login endpoint — the password is only verified against
+    // the server the first time an admin action (add/delete) is attempted.
+    setAdminPassword(adminPass);
+    setIsAdmin(true);
+    setShowAdminLogin(false);
     setAdminPass('');
   };
 
-  const refresh = useCallback(() => {
-    setBookings(getBookings());
-    setRooms([...ROOMS]);
-  }, []);
+  const refresh = useCallback(async () => {
+    try {
+      const [freshRooms, freshBookings] = await Promise.all([fetchRooms(), fetchBookings()]);
+      setRooms(freshRooms);
+      setBookings(freshBookings);
+    } catch (error) {
+      handleApiError(error);
+    } finally {
+      setLoading(false);
+    }
+  }, [handleApiError]);
+
+  useEffect(() => {
+    refresh();
+  }, [refresh]);
+
+  const handleDeleteRoom = async (id: string) => {
+    try {
+      await deleteRoom(id);
+      await refresh();
+    } catch (error) {
+      handleApiError(error);
+    }
+  };
 
   if (!onboarded) return <OnboardingScreen onDone={() => setOnboarded(true)} />;
+
+  if (loading) {
+    return (
+      <SafeAreaProvider>
+        <SafeAreaView style={[styles.safe, styles.loadingScreen]}>
+          <ActivityIndicator size="large" color={Colors.accent} />
+        </SafeAreaView>
+      </SafeAreaProvider>
+    );
+  }
 
   return (
     <SafeAreaProvider>
@@ -114,7 +162,7 @@ export default function App() {
                 bookings={bookings}
                 onBook={r => setSelectedRoom(r)}
                 isAdmin={isAdmin}
-                onDelete={id => { deleteRoom(id); refresh(); }}
+                onDelete={id => { handleDeleteRoom(id); }}
               />
             ))}
           </ScrollView>
@@ -166,6 +214,7 @@ export default function App() {
           visible={showAddRoom}
           onClose={() => setShowAddRoom(false)}
           onAdded={() => { setShowAddRoom(false); refresh(); }}
+          onError={handleApiError}
         />
       </SafeAreaView>
     </SafeAreaProvider>
@@ -189,6 +238,7 @@ function TabBtn({
 
 const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: Colors.bg },
+  loadingScreen: { justifyContent: 'center', alignItems: 'center' },
   header: {
     flexDirection: 'row',
     justifyContent: 'space-between',

@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import {
   Modal, View, Text, TextInput, TouchableOpacity,
-  StyleSheet, Alert, ScrollView,
+  StyleSheet, Alert, ScrollView, ActivityIndicator,
 } from 'react-native';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import { Colors } from '../theme/colors';
@@ -11,36 +11,45 @@ type Props = {
   visible: boolean;
   onClose: () => void;
   onAdded: () => void;
+  onError: (error: unknown) => void;
 };
 
 const COLORS = ['#6C63FF', '#FF6584', '#FFB800', '#43D9AD', '#FF8C42', '#4ECDC4'];
 
-export default function AddRoomModal({ visible, onClose, onAdded }: Props) {
+export default function AddRoomModal({ visible, onClose, onAdded, onError }: Props) {
   const [name, setName] = useState('');
   const [capacity, setCapacity] = useState('');
   const [floor, setFloor] = useState('');
   const [amenities, setAmenities] = useState('');
   const [color, setColor] = useState(COLORS[0]);
+  const [submitting, setSubmitting] = useState(false);
 
   const reset = () => {
     setName(''); setCapacity(''); setFloor(''); setAmenities(''); setColor(COLORS[0]);
   };
 
-  const handleAdd = () => {
+  const handleAdd = async () => {
     if (!name || !capacity || !floor) {
       Alert.alert('Missing Info', 'Please fill name, capacity and floor.');
       return;
     }
-    addRoom({
-      id: 'r_' + Date.now(),
-      name,
-      capacity: parseInt(capacity, 10) || 1,
-      floor: parseInt(floor, 10) || 1,
-      amenities: amenities.split(',').map(a => a.trim()).filter(Boolean),
-      color,
-    });
-    reset();
-    onAdded();
+    if (submitting) return;
+    setSubmitting(true);
+    try {
+      await addRoom({
+        name,
+        capacity: parseInt(capacity, 10) || 1,
+        floor: parseInt(floor, 10) || 1,
+        amenities: amenities.split(',').map(a => a.trim()).filter(Boolean),
+        color,
+      });
+      reset();
+      onAdded();
+    } catch (error) {
+      onError(error);
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   return (
@@ -69,9 +78,14 @@ export default function AddRoomModal({ visible, onClose, onAdded }: Props) {
               ))}
             </View>
 
-            <TouchableOpacity style={[styles.confirmBtn, { backgroundColor: Colors.accent }]} onPress={handleAdd}>
-              <Icon name="plus-circle" size={18} color="#fff" style={{ marginRight: 8 }} />
-              <Text style={styles.confirmText}>Add Room</Text>
+            <TouchableOpacity
+              style={[styles.confirmBtn, { backgroundColor: Colors.accent }, submitting && styles.confirmBtnDisabled]}
+              onPress={handleAdd}
+              disabled={submitting}>
+              {submitting
+                ? <ActivityIndicator color="#fff" style={{ marginRight: 8 }} />
+                : <Icon name="plus-circle" size={18} color="#fff" style={{ marginRight: 8 }} />}
+              <Text style={styles.confirmText}>{submitting ? 'Adding…' : 'Add Room'}</Text>
             </TouchableOpacity>
 
             <TouchableOpacity style={styles.cancelBtn} onPress={() => { reset(); onClose(); }}>
@@ -136,6 +150,7 @@ const styles = StyleSheet.create({
     borderRadius: 14, padding: 16,
     alignItems: 'center', flexDirection: 'row', justifyContent: 'center', marginTop: 4,
   },
+  confirmBtnDisabled: { opacity: 0.6 },
   confirmText: { color: '#fff', fontWeight: '800', fontSize: 16 },
   cancelBtn: { padding: 14, alignItems: 'center', flexDirection: 'row', justifyContent: 'center' },
   cancelText: { color: Colors.textMuted, fontSize: 14 },

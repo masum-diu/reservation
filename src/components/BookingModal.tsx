@@ -1,7 +1,7 @@
 import React, { useState, useMemo } from 'react';
 import {
   Modal, View, Text, TextInput, TouchableOpacity,
-  StyleSheet, Alert, ScrollView, Platform, useWindowDimensions,
+  StyleSheet, Alert, ScrollView, Platform, useWindowDimensions, ActivityIndicator,
 } from 'react-native';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
@@ -39,6 +39,7 @@ export default function BookingModal({ room, visible, onClose, onBooked, booking
   const [endTime, setEndTime] = useState('');
   const [attendees, setAttendees] = useState('2');
   const [showDatePicker, setShowDatePicker] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
 
   const reset = () => {
     setTitle(''); setOrganizer(''); setDate(new Date());
@@ -89,25 +90,33 @@ export default function BookingModal({ room, visible, onClose, onBooked, booking
     return 'free';
   };
 
-  const handleBook = () => {
+  const handleBook = async () => {
     if (!title || !organizer || !startTime || !endTime) {
       Alert.alert('Missing Info', 'Please fill all fields and select start & end time.');
       return;
     }
-    if (hasConflict(room!.id, fmt(date), startTime, endTime)) {
-      Alert.alert('⚠️ Conflict', `${room!.name} is already booked during this time.`);
-      return;
+    if (submitting) return;
+    setSubmitting(true);
+    try {
+      const conflict = await hasConflict(room!.id, fmt(date), startTime, endTime);
+      if (conflict) {
+        Alert.alert('⚠️ Conflict', `${room!.name} is already booked during this time.`);
+        return;
+      }
+      await addBooking({
+        roomId: room!.id,
+        title, organizer,
+        date: fmt(date),
+        startTime, endTime,
+        attendees: parseInt(attendees, 10) || 1,
+      });
+      reset();
+      onBooked();
+    } catch (error) {
+      Alert.alert('Error', error instanceof Error ? error.message : 'Could not create booking.');
+    } finally {
+      setSubmitting(false);
     }
-    addBooking({
-      id: Date.now().toString(),
-      roomId: room!.id,
-      title, organizer,
-      date: fmt(date),
-      startTime, endTime,
-      attendees: parseInt(attendees, 10) || 1,
-    });
-    reset();
-    onBooked();
   };
 
   if (!room) return null;
@@ -213,9 +222,14 @@ export default function BookingModal({ room, visible, onClose, onBooked, booking
                 placeholder="2" placeholderTextColor={Colors.textMuted} keyboardType="numeric" />
             </View>
 
-            <TouchableOpacity style={[styles.confirmBtn, { backgroundColor: room.color }]} onPress={handleBook}>
-              <Icon name="calendar-check" size={18} color="#fff" style={{ marginRight: 8 }} />
-              <Text style={styles.confirmText}>Confirm Booking</Text>
+            <TouchableOpacity
+              style={[styles.confirmBtn, { backgroundColor: room.color }, submitting && styles.confirmBtnDisabled]}
+              onPress={handleBook}
+              disabled={submitting}>
+              {submitting
+                ? <ActivityIndicator color="#fff" style={{ marginRight: 8 }} />
+                : <Icon name="calendar-check" size={18} color="#fff" style={{ marginRight: 8 }} />}
+              <Text style={styles.confirmText}>{submitting ? 'Booking…' : 'Confirm Booking'}</Text>
             </TouchableOpacity>
 
             <TouchableOpacity style={styles.cancelBtn} onPress={() => { reset(); onClose(); }}>
@@ -296,6 +310,7 @@ const styles = StyleSheet.create({
     borderRadius: 14, padding: 16, alignItems: 'center',
     flexDirection: 'row', justifyContent: 'center', marginTop: 4,
   },
+  confirmBtnDisabled: { opacity: 0.6 },
   confirmText: { color: '#fff', fontWeight: '800', fontSize: 16 },
   cancelBtn: { padding: 14, alignItems: 'center', flexDirection: 'row', justifyContent: 'center', gap: 6 },
   cancelText: { color: Colors.textMuted, fontSize: 14 },
